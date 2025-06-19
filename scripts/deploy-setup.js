@@ -64,9 +64,8 @@ async function setupProduction() {
         console.log('🗄️ Setting up secure database schema...');
         await runCommand('npx', ['prisma', 'db', 'push']);
 
-        // Seed database with secure data
-        console.log('🌱 Seeding database with secure sample data...');
-        await runCommand('npm', ['run', 'seed']);
+        // Skip seeding in build process - will be done after deployment
+        console.log('🌱 Skipping database seeding during build...');
 
         console.log('✅ SECURE PRODUCTION SETUP COMPLETE!');
         console.log('🔒 All secrets handled via environment variables');

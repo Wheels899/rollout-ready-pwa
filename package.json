@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx scripts/seed.ts",
@@ -12,7 +12,7 @@
     "deploy:auto": "node DEPLOY.js",
     "deploy:interactive": "node START.js",
     "unified-start": "node DEPLOY.js",
-    "postbuild": "node scripts/deploy-setup.js"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
