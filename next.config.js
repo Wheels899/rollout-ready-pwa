@@ -6,6 +6,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ['@prisma/client', 'prisma']
+  },
+  // Skip problematic static generation during build
+  output: 'standalone'
 };
 
 module.exports = nextConfig;
