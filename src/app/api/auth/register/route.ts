@@ -6,7 +6,7 @@ import { SystemRole } from '@prisma/client';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { firstName, lastName, username, email, password, confirmPassword } = body;
+    const { firstName, lastName, username, email, password, confirmPassword, systemRole } = body;
 
     // Validation
     if (!firstName || !lastName || !username || !email || !password) {
@@ -16,7 +16,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (password !== confirmPassword) {
+    // Only check password confirmation if it's provided
+    if (confirmPassword && password !== confirmPassword) {
       return NextResponse.json(
         { message: 'Passwords do not match' },
         { status: 400 }
@@ -59,7 +60,11 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // Create user with USER role by default
+    // Determine system role - first user becomes ADMIN, or use provided role
+    const userCount = await prisma.user.count();
+    const finalSystemRole = userCount === 0 ? SystemRole.ADMIN : (systemRole || SystemRole.USER);
+
+    // Create user
     const user = await prisma.user.create({
       data: {
         firstName: firstName.trim(),
@@ -67,7 +72,7 @@ export async function POST(request: NextRequest) {
         username: username.toLowerCase().trim(),
         email: email.toLowerCase().trim(),
         password: hashedPassword,
-        systemRole: SystemRole.USER,
+        systemRole: finalSystemRole,
         isActive: true,
       },
       select: {
