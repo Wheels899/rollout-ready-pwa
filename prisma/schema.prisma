@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core entities for Rollout Ready
+
+// User authentication and management
+model User {
+  id          Int      @id @default(autoincrement())
+  username    String   @unique
+  email       String   @unique
+  password    String   // Hashed password
+  firstName   String?
+  lastName    String?
+  isActive    Boolean  @default(true)
+  systemRole  SystemRole @default(USER) // System-level permissions
+  jobRoleId   Int?     // Job role (Business Analyst, Project Manager, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  projectRoles ProjectRole[]
+  sessions     Session[]
+  jobRole      Role?    @relation(fields: [jobRoleId], references: [id])
+
+  @@map("users")
+}
+
+// System-level roles for application access
+enum SystemRole {
+  ADMIN     // Full system access, can manage everything
+  MANAGER   // Can create/manage projects and assign users
+  USER      // Can only view assigned tasks and update status
+}
+
+// User sessions for authentication
+model Session {
+  id        String   @id @default(cuid())
+  userId    Int
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// Job roles (what users do - Business Analyst, Project Manager, etc.)
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  templates    Template[]
+  projectRoles ProjectRole[]
+  users        User[]     // Users who have this job role
+
+  @@map("roles")
+}
+
+model Template {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  roleId      Int
+  autoAssign  Boolean  @default(false) // Auto-assign when role is added to project
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  role          Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  templateTasks TemplateTask[]
+
+  @@map("templates")
+}
+
+model TemplateTask {
+  id          Int      @id @default(autoincrement())
+  templateId  Int
+  description String
+  offsetDays  Int      // Days from project start (can be negative for pre-start tasks)
+  isRecurring Boolean  @default(false)
+  isCritical  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  template     Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  projectTasks ProjectTask[]
+
+  @@map("template_tasks")
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  projectRoles ProjectRole[]
+  projectTasks ProjectTask[]
+
+  @@map("projects")
+}
+
+model ProjectRole {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  roleId    Int
+  userId    Int      // Reference to User instead of string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role         Role          @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectTasks ProjectTask[]
+
+  // Ensure one user per role per project
+  @@unique([projectId, roleId])
+  @@map("project_roles")
+}
+
+model ProjectTask {
+  id             Int         @id @default(autoincrement())
+  projectId      Int
+  templateTaskId Int?        // Optional - null for manually added tasks
+  projectRoleId  Int
+  description    String
+  dueDate        DateTime
+  status         TaskStatus  @default(TODO)
+  comments       String?
+  timeSpentMinutes Int?      // Time taken to complete in minutes
+  completedAt    DateTime?   // When task was marked as done
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relations
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  templateTask TemplateTask? @relation(fields: [templateTaskId], references: [id])
+  projectRole  ProjectRole  @relation(fields: [projectRoleId], references: [id], onDelete: Cascade)
+  attachments  TaskAttachment[]
+
+  @@map("project_tasks")
+}
+
+model TaskAttachment {
+  id           Int         @id @default(autoincrement())
+  taskId       Int
+  fileName     String
+  originalName String
+  fileSize     Int
+  mimeType     String
+  uploadedBy   String      // Username of uploader
+  createdAt    DateTime    @default(now())
+
+  // Relations
+  task         ProjectTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("task_attachments")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
