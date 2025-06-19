@@ -11,15 +11,22 @@ export default async function DashboardPage() {
   }
 
   const user = await validateSession(token);
-  
+
   if (!user) {
     redirect('/login');
   }
 
-  // Redirect based on user role
-  if (user.systemRole === 'ADMIN' || user.systemRole === 'MANAGER') {
+  console.log('Dashboard redirect - User:', user.username, 'Role:', user.systemRole);
+
+  // Force redirect based on user role - ADMIN must go to admin panel
+  if (user.systemRole === 'ADMIN') {
+    console.log('Redirecting ADMIN user to /admin');
+    redirect('/admin');
+  } else if (user.systemRole === 'MANAGER') {
+    console.log('Redirecting MANAGER user to /admin');
     redirect('/admin');
   } else {
+    console.log('Redirecting USER to user dashboard');
     redirect(`/dashboard/${user.username}`);
   }
 }
